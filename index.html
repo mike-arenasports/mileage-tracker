@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arena Sports – Mileage Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #1a2e4a; --blue: #1e5fa8; --sky: #3b9de8; --ice: #e8f4fd;
+    --green: #1a7a3c; --mint: #e6f4ec; --border: #dde3ea;
+    --text: #1c2b3a; --muted: #6b7c8d; --white: #ffffff; --cream: #fafbfc;
+    --radius: 12px; --shadow: 0 2px 12px rgba(26,46,74,0.10);
+    --shadow-lg: 0 8px 32px rgba(26,46,74,0.15);
+    --arena:#1e5fa8; --fanatic:#7b3fa0; --diamond:#c47d0e; --vr:#1a7a3c;
+  }
+  body { font-family:'Inter',sans-serif; background:var(--cream); color:var(--text); min-height:100vh; padding-bottom:80px; }
+
+  header {
+    background:linear-gradient(135deg,var(--navy) 0%,#243d5c 100%);
+    padding:24px 20px 20px; text-align:center; position:relative; overflow:hidden;
+  }
+  header::before {
+    content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(45deg,transparent,transparent 40px,rgba(255,255,255,.02) 40px,rgba(255,255,255,.02) 41px);
+  }
+  .header-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.18);
+    border-radius:20px; padding:4px 12px; font-size:11px; font-weight:600;
+    letter-spacing:.08em; color:rgba(255,255,255,.75); text-transform:uppercase; margin-bottom:10px;
+  }
+  header h1 { font-size:clamp(20px,5vw,28px); font-weight:700; color:#fff; letter-spacing:-.02em; }
+  header h1 span { color:var(--sky); }
+  .header-sub { font-size:13px; color:rgba(255,255,255,.60); margin-top:4px; }
+  .origin-pill {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(59,157,232,.18); border:1px solid rgba(59,157,232,.35);
+    border-radius:20px; padding:5px 14px; font-size:12px; font-weight:500; color:#a8d4f5; margin-top:12px;
+  }
+
+  main { max-width:640px; margin:0 auto; padding:20px 16px 0; }
+
+  .card {
+    background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:24px; margin-bottom:16px;
+  }
+  .card-title {
+    font-size:13px; font-weight:600; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:16px; display:flex; align-items:center; gap:8px;
+  }
+  .card-title .step { background:var(--navy); color:#fff; width:22px; height:22px; border-radius:50%; font-size:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight:700; }
+  .card-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .field { margin-bottom:14px; }
+  label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; }
+  input, textarea {
+    width:100%; padding:11px 14px; border:1.5px solid var(--border); border-radius:8px;
+    font-family:'Inter',sans-serif; font-size:14px; color:var(--text); background:#fff;
+    transition:border-color .15s,box-shadow .15s; outline:none;
+  }
+  input:focus, textarea:focus { border-color:var(--sky); box-shadow:0 0 0 3px rgba(59,157,232,.15); }
+  input::placeholder, textarea::placeholder { color:#b0bec5; }
+  textarea { resize:none; }
+
+  /* Company pills */
+  .company-pills { display:flex; flex-wrap:wrap; gap:8px; }
+  .pill { padding:7px 14px; border-radius:20px; font-size:13px; font-weight:600; border:2px solid transparent; cursor:pointer; transition:all .15s; }
+  .pill-arena   { background:#e8f0fb; color:var(--arena);   border-color:#b8d0ef; }
+  .pill-fanatic { background:#f3eaf9; color:var(--fanatic); border-color:#d9b8f0; }
+  .pill-diamond { background:#fdf3e3; color:var(--diamond); border-color:#f0d898; }
+  .pill-vr      { background:var(--mint); color:var(--vr);  border-color:#a8dbc0; }
+  .pill.selected { color:#fff; }
+  .pill-arena.selected   { background:var(--arena);   border-color:var(--arena); }
+  .pill-fanatic.selected { background:var(--fanatic); border-color:var(--fanatic); }
+  .pill-diamond.selected { background:var(--diamond); border-color:var(--diamond); }
+  .pill-vr.selected      { background:var(--vr);      border-color:var(--vr); }
+
+  /* Voice */
+  .voice-wrap { position:relative; }
+  .voice-textarea { padding-right:52px; min-height:80px; line-height:1.5; }
+  .voice-btn {
+    position:absolute; right:10px; bottom:10px; width:36px; height:36px;
+    border-radius:50%; border:none; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:all .2s; background:var(--blue); color:#fff;
+  }
+  .voice-btn:hover { background:#1a529a; transform:scale(1.05); }
+  .voice-btn.listening { background:#c62828; animation:pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(198,40,40,.4)} 50%{box-shadow:0 0 0 8px rgba(198,40,40,0)} }
+  .voice-hint { font-size:11px; color:var(--muted); margin-top:5px; display:flex; align-items:center; gap:4px; }
+  .voice-status { font-size:11px; color:#c62828; font-weight:600; display:none; margin-top:4px; align-items:center; gap:5px; }
+  .voice-status.show { display:flex; }
+
+  /* Search */
+  .search-wrap { position:relative; }
+  .search-wrap input { padding-left:42px; padding-right:44px; }
+  .search-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none; }
+  .search-clear { position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--muted); font-size:18px; line-height:1; display:none; padding:0 2px; }
+  .search-clear.show { display:block; }
+  .suggestions {
+    position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff;
+    border:1.5px solid var(--sky); border-radius:8px; box-shadow:var(--shadow-lg);
+    z-index:100; max-height:260px; overflow-y:auto; display:none;
+  }
+  .suggestions.show { display:block; }
+  .sug-item { padding:12px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; gap:10px; transition:background .1s; }
+  .sug-item:last-child { border-bottom:none; }
+  .sug-item:hover,.sug-item.active { background:var(--ice); }
+  .sug-icon { font-size:16px; flex-shrink:0; margin-top:1px; }
+  .sug-name { font-weight:600; color:var(--text); }
+  .sug-addr { font-size:11px; color:var(--muted); margin-top:2px; }
+  .sug-dist { font-size:11px; color:var(--blue); font-weight:600; margin-top:2px; }
+  .sug-loading { padding:16px 14px; color:var(--muted); font-size:13px; display:flex; align-items:center; gap:8px; }
+  .addr-resolved { background:var(--ice); border:1.5px solid rgba(59,157,232,.35); border-radius:8px; padding:10px 14px; margin-top:6px; font-size:12px; color:var(--blue); font-weight:500; display:none; align-items:center; gap:8px; }
+  .addr-resolved.show { display:flex; }
+
+  /* Distance */
+  .distance-result { background:var(--ice); border:1.5px solid rgba(59,157,232,.3); border-radius:10px; padding:16px; margin-bottom:14px; display:none; }
+  .distance-result.show { display:block; }
+  .dist-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .dist-stat { text-align:center; }
+  .dist-num { font-family:'Roboto Mono',monospace; font-size:28px; font-weight:500; color:var(--blue); line-height:1; }
+  .dist-label { font-size:11px; color:var(--muted); margin-top:3px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+  .deduction-row { margin-top:12px; padding-top:12px; border-top:1px solid rgba(59,157,232,.2); display:flex; justify-content:space-between; align-items:center; }
+  .deduction-label { font-size:12px; color:var(--muted); font-weight:600; }
+  .deduction-amount { font-family:'Roboto Mono',monospace; font-size:18px; font-weight:500; color:var(--green); }
+  .irs-note { font-size:10px; color:var(--muted); margin-top:2px; }
+
+  /* ── THE ONE BIG BUTTON ── */
+  .btn-go {
+    width:100%; padding:16px; border:none; border-radius:10px;
+    background:linear-gradient(135deg,#1a529a 0%,#1a7a3c 100%);
+    color:#fff; font-family:'Inter',sans-serif; font-size:15px; font-weight:700;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;
+    transition:opacity .15s, transform .1s; letter-spacing:.01em;
+    box-shadow:0 4px 16px rgba(26,46,74,.25);
+  }
+  .btn-go:hover:not(:disabled) { opacity:.92; }
+  .btn-go:active:not(:disabled) { transform:scale(.98); }
+  .btn-go:disabled { background:#b0bec5; box-shadow:none; cursor:not-allowed; }
+
+  /* Progress steps inside button */
+  .btn-go .step-text { display:flex; flex-direction:column; align-items:flex-start; gap:1px; }
+  .btn-go .step-main { font-size:15px; font-weight:700; }
+  .btn-go .step-sub  { font-size:10px; font-weight:500; opacity:.8; letter-spacing:.04em; }
+
+  /* Progress indicator */
+  .progress-wrap { display:none; margin-bottom:14px; }
+  .progress-wrap.show { display:block; }
+  .progress-steps { display:flex; align-items:center; gap:0; }
+  .p-step {
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; position:relative;
+  }
+  .p-step:not(:last-child)::after {
+    content:''; position:absolute; top:14px; left:50%; width:100%; height:2px;
+    background:var(--border); z-index:0;
+  }
+  .p-step.done::after   { background:var(--green); }
+  .p-step.active::after { background:linear-gradient(90deg,var(--green),var(--border)); }
+  .p-dot {
+    width:28px; height:28px; border-radius:50%; border:2px solid var(--border);
+    background:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:700; color:var(--muted); position:relative; z-index:1;
+    transition:all .3s;
+  }
+  .p-step.done .p-dot   { background:var(--green); border-color:var(--green); color:#fff; }
+  .p-step.active .p-dot { background:var(--blue);  border-color:var(--blue);  color:#fff; animation:pulse-dot .8s ease-in-out infinite; }
+  @keyframes pulse-dot { 0%,100%{box-shadow:0 0 0 0 rgba(30,95,168,.4)} 50%{box-shadow:0 0 0 6px rgba(30,95,168,0)} }
+  .p-label { font-size:10px; color:var(--muted); font-weight:600; text-align:center; }
+  .p-step.done .p-label   { color:var(--green); }
+  .p-step.active .p-label { color:var(--blue); }
+
+  /* Result card */
+  .result-card { background:linear-gradient(135deg,#f8f4ff 0%,#f0f7ff 100%); border:1.5px solid #d0b8f0; border-radius:10px; padding:16px; margin-bottom:14px; display:none; }
+  .result-card.show { display:block; }
+  .result-title { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  .result-row { display:flex; align-items:flex-start; gap:10px; margin-bottom:8px; }
+  .result-row:last-child { margin-bottom:0; }
+  .rk { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; min-width:80px; padding-top:2px; flex-shrink:0; }
+  .rv { font-size:13px; color:var(--text); font-weight:500; line-height:1.4; }
+  .company-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:700; }
+  .badge-arena   { background:#e8f0fb; color:var(--arena); }
+  .badge-fanatic { background:#f3eaf9; color:var(--fanatic); }
+  .badge-diamond { background:#fdf3e3; color:var(--diamond); }
+  .badge-vr      { background:var(--mint); color:var(--vr); }
+  .category-tag  { display:inline-block; background:#f0f4f8; color:var(--muted); border-radius:6px; padding:2px 8px; font-size:11px; font-weight:600; }
+  .saved-banner  { display:flex; align-items:center; gap:8px; background:var(--mint); border:1px solid #b2dfca; border-radius:8px; padding:10px 14px; font-size:13px; font-weight:600; color:var(--green); margin-top:10px; }
+
+  /* Totals */
+  .totals-banner { background:linear-gradient(135deg,var(--navy) 0%,#1e3d5c 100%); border-radius:var(--radius); padding:20px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; text-align:center; margin-bottom:16px; }
+  .total-stat .num { font-family:'Roboto Mono',monospace; font-size:22px; font-weight:500; color:#fff; }
+  .total-stat .lbl { font-size:10px; color:rgba(255,255,255,.55); text-transform:uppercase; letter-spacing:.06em; margin-top:2px; }
+  .total-stat.green .num { color:#6fcf97; }
+
+  /* Trip log */
+  .log-empty { text-align:center; padding:32px 16px; color:var(--muted); font-size:14px; }
+  .log-empty .icon { font-size:36px; margin-bottom:8px; }
+  .trip-item { display:flex; align-items:flex-start; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); }
+  .trip-item:last-child { border-bottom:none; }
+  .trip-dot { width:8px; height:8px; border-radius:50%; background:var(--sky); flex-shrink:0; margin-top:5px; }
+  .trip-main { flex:1; min-width:0; }
+  .trip-dest { font-weight:600; font-size:14px; }
+  .trip-addr { font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .trip-meta { margin-top:4px; display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+  .trip-note { font-size:12px; color:var(--muted); margin-top:2px; font-style:italic; }
+  .trip-right { text-align:right; flex-shrink:0; }
+  .trip-miles { font-family:'Roboto Mono',monospace; font-size:16px; font-weight:500; color:var(--blue); }
+  .trip-deduct { font-family:'Roboto Mono',monospace; font-size:12px; color:var(--green); font-weight:500; }
+  .trip-date { font-size:10px; color:var(--muted); margin-top:2px; }
+
+  .sheet-link { display:flex; align-items:center; gap:8px; background:var(--mint); border:1px solid #b2dfca; border-radius:8px; padding:10px 14px; text-decoration:none; color:var(--green); font-size:13px; font-weight:600; transition:background .15s; margin-bottom:14px; }
+  .sheet-link:hover { background:#c8ebd6; }
+
+  /* Custom origin */
+  .origin-override-wrap { position:relative; }
+  .origin-override-wrap input { padding-left:42px; }
+  .origin-override-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none; }
+  .origin-default-badge {
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(59,157,232,.12); border:1px solid rgba(59,157,232,.3);
+    border-radius:6px; padding:3px 9px; font-size:11px; font-weight:600; color:var(--blue);
+    margin-top:5px;
+  }
+  .origin-custom-badge {
+    display:inline-flex; align-items:center; gap:5px;
+    background:#fff8e6; border:1px solid #f0d898;
+    border-radius:6px; padding:3px 9px; font-size:11px; font-weight:600; color:var(--diamond);
+    margin-top:5px;
+  }
+  .origin-clear-btn {
+    position:absolute; right:10px; top:50%; transform:translateY(-50%);
+    background:none; border:none; cursor:pointer; color:var(--muted); font-size:18px; line-height:1; display:none;
+  }
+  .origin-clear-btn.show { display:block; }
+
+  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--navy); color:#fff; padding:12px 20px; border-radius:40px; font-size:13px; font-weight:500; box-shadow:var(--shadow-lg); transition:transform .3s cubic-bezier(.34,1.56,.64,1); z-index:999; white-space:nowrap; }
+  .toast.show { transform:translateX(-50%) translateY(0); }
+  .toast.error   { background:#b71c1c; }
+  .toast.success { background:var(--green); }
+
+  .spin { width:18px; height:18px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; display:inline-block; flex-shrink:0; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-badge">🚗 Tax Mileage Tracker</div>
+  <h1>Arena Sports <span>&</span> Fanatic Graphix</h1>
+  <div class="header-sub">Business Travel Log · IRS Standard Mileage Rate</div>
+  <div class="origin-pill" id="headerOriginPill">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+    <span id="headerOriginText">Origin: 3 Fair Ave, Hanover, PA 17331</span>
+  </div>
+</header>
+
+<main>
+
+  <div class="totals-banner">
+    <div class="total-stat">
+      <div class="num" id="totalTrips">0</div>
+      <div class="lbl">Trips Logged</div>
+    </div>
+    <div class="total-stat">
+      <div class="num" id="totalMiles">0.0</div>
+      <div class="lbl">Total Miles</div>
+    </div>
+    <div class="total-stat green">
+      <div class="num" id="totalDeduction">$0.00</div>
+      <div class="lbl">Est. Deduction</div>
+    </div>
+  </div>
+
+  <a href="https://docs.google.com/spreadsheets/d/1W1Ai_CGRpdO26h9fjoVO7y9rXKeKbB1ib2MSswjSKRc/edit" target="_blank" class="sheet-link">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+    Open Google Sheets Mileage Log ↗
+  </a>
+
+  <div class="card">
+    <div class="card-title"><span class="step">1</span> Company</div>
+    <div class="field">
+      <div class="company-pills">
+        <div class="pill pill-arena"   onclick="selectCompany('Arena Sports',this)">🏟 Arena Sports</div>
+        <div class="pill pill-fanatic" onclick="selectCompany('Fanatic Graphix',this)">🎨 Fanatic Graphix</div>
+        <div class="pill pill-diamond" onclick="selectCompany('Diamond X',this)">💎 Diamond X</div>
+        <div class="pill pill-vr"      onclick="selectCompany('Vertical Raise',this)">🚀 Vertical Raise</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="step">2</span> Trip Reason <span style="color:var(--sky);font-size:11px;font-weight:500;text-transform:none;letter-spacing:0">— speak or type</span></div>
+    <div class="field">
+      <div class="voice-wrap">
+        <textarea class="voice-textarea" id="voiceText"
+          placeholder="Tap the mic and describe your trip, or just type it here…"
+          oninput="checkReady()"></textarea>
+        <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="Tap to speak">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+      </div>
+      <div class="voice-status" id="voiceStatus">
+        <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="#c62828"/></svg>
+        Listening… tap mic to stop
+      </div>
+      <div class="voice-hint">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Tap mic · speak · tap again to stop
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="step">3</span> Destination</div>
+    <div class="field">
+      <label>DATE</label>
+      <input type="date" id="tripDate">
+    </div>
+
+    <div class="field">
+      <label>STARTING FROM <span style="color:var(--muted);font-weight:400;font-size:11px">— leave blank to use shop address</span></label>
+      <div class="origin-override-wrap">
+        <svg class="origin-override-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+        <input type="text" id="originOverride" placeholder="3 Fair Ave, Hanover, PA 17331 (default)"
+          oninput="onOriginInput()" autocomplete="off">
+        <button class="origin-clear-btn" id="originClearBtn" onclick="clearOrigin()">×</button>
+      </div>
+      <div id="originBadge" class="origin-default-badge">
+        📍 Defaulting to: 3 Fair Ave, Hanover, PA 17331
+      </div>
+    </div>
+
+    <div class="field">
+      <label>WHERE ARE YOU GOING?</label>
+      <div class="search-wrap">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="locationSearch" placeholder="e.g. Wilson College, UPS Store York, Home Depot…" autocomplete="off" onkeydown="handleKey(event)" oninput="onDestInput()">
+        <button class="search-clear" id="searchClear" onclick="clearSearch()">×</button>
+        <div class="suggestions" id="suggestions"></div>
+      </div>
+      <div class="addr-resolved" id="addrResolved">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span id="addrResolvedText"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-steps">
+      <div class="p-step" id="ps1">
+        <div class="p-dot" id="pd1">1</div>
+        <div class="p-label">Find Address</div>
+      </div>
+      <div class="p-step" id="ps2">
+        <div class="p-dot" id="pd2">2</div>
+        <div class="p-label">Calculate Miles</div>
+      </div>
+      <div class="p-step" id="ps3">
+        <div class="p-dot" id="pd3">3</div>
+        <div class="p-label">AI Categorize</div>
+      </div>
+      <div class="p-step" id="ps4">
+        <div class="p-dot" id="pd4">4</div>
+        <div class="p-label">Save to Sheets</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result-card" id="resultCard">
+    <div class="result-title">✦ Trip Logged</div>
+    <div class="result-row">
+      <div class="rk">Company</div>
+      <div class="rv"><span class="company-badge" id="rcCompany"></span></div>
+    </div>
+    <div class="result-row">
+      <div class="rk">Category</div>
+      <div class="rv"><span class="category-tag" id="rcCategory"></span></div>
+    </div>
+    <div class="result-row">
+      <div class="rk">Summary</div>
+      <div class="rv" id="rcSummary"></div>
+    </div>
+    <div class="result-row">
+      <div class="rk">Destination</div>
+      <div class="rv" id="rcDest"></div>
+    </div>
+    <div class="result-row">
+      <div class="rk">Round-Trip</div>
+      <div class="rv" id="rcMiles" style="font-family:'Roboto Mono',monospace;font-weight:600;color:var(--blue)"></div>
+    </div>
+    <div class="result-row">
+      <div class="rk">Deduction</div>
+      <div class="rv" id="rcDeduction" style="font-family:'Roboto Mono',monospace;font-weight:600;color:var(--green)"></div>
+    </div>
+    <div class="saved-banner" id="savedBanner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      Saved to Google Sheets
+    </div>
+  </div>
+
+  <!-- THE ONE BUTTON -->
+  <button class="btn-go" id="goBtn" onclick="doEverything()" disabled>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    <div class="step-text">
+      <div class="step-main">Analyze &amp; Save to Google Sheets</div>
+      <div class="step-sub">Find address · calculate miles · AI categorize · save — all at once</div>
+    </div>
+  </button>
+
+  <div class="card">
+    <div class="card-title">Session Log</div>
+    <div id="tripLog"><div class="log-empty"><div class="icon">🗺️</div>No trips logged yet.</div></div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DEFAULT_ORIGIN = "3 Fair Ave, Hanover, PA 17331";
+const SHEET_ID = "1W1Ai_CGRpdO26h9fjoVO7y9rXKeKbB1ib2MSswjSKRc";
+const IRS_RATE = 0.70;
+const IRS_YEAR = 2025;
+const MODEL    = "claude-sonnet-4-6";
+
+function getOrigin() {
+  const custom = document.getElementById("originOverride").value.trim();
+  return custom || DEFAULT_ORIGIN;
+}
+
+function onOriginInput() {
+  const val = document.getElementById("originOverride").value.trim();
+  const clearBtn = document.getElementById("originClearBtn");
+  const badge    = document.getElementById("originBadge");
+  const headerTxt = document.getElementById("headerOriginText");
+  clearBtn.classList.toggle("show", val.length > 0);
+  if (val.length > 0) {
+    badge.className = "origin-custom-badge";
+    badge.textContent = "⚡ Custom origin: " + val;
+    headerTxt.textContent = "Origin: " + val;
+  } else {
+    badge.className = "origin-default-badge";
+    badge.textContent = "📍 Defaulting to: " + DEFAULT_ORIGIN;
+    headerTxt.textContent = "Origin: " + DEFAULT_ORIGIN;
+  }
+  // Reset any pre-fetched suggestion distance since origin changed
+  if (searchInput._picked) searchInput._picked = null;
+  document.getElementById("addrResolved").classList.remove("show");
+}
+
+function clearOrigin() {
+  document.getElementById("originOverride").value = "";
+  onOriginInput();
+  document.getElementById("originClearBtn").classList.remove("show");
+}
+
+const COMPANIES = {
+  "Arena Sports":    {cls:"badge-arena",   emoji:"🏟"},
+  "Fanatic Graphix": {cls:"badge-fanatic", emoji:"🎨"},
+  "Diamond X":       {cls:"badge-diamond", emoji:"💎"},
+  "Vertical Raise":  {cls:"badge-vr",      emoji:"🚀"},
+};
+
+let trips=[], selectedCompany="", suggestTimer=null, suggestions=[], activeSugIdx=-1;
+let recognition=null, isListening=false;
+
+document.getElementById("tripDate").value = new Date().toISOString().split("T")[0];
+
+// ── VOICE ─────────────────────────────────────────────────────────────────
+(function(){
+  const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){
+    document.getElementById("voiceBtn").style.display="none";
+    return;
+  }
+  recognition = new SR();
+  recognition.continuous=true; recognition.interimResults=true; recognition.lang="en-US";
+  recognition.onstart=()=>{ isListening=true; document.getElementById("voiceBtn").classList.add("listening"); document.getElementById("voiceStatus").classList.add("show"); };
+  recognition.onresult=(e)=>{
+    let final="",interim="";
+    for(let i=0;i<e.results.length;i++) e.results[i].isFinal ? final+=e.results[i][0].transcript : interim+=e.results[i][0].transcript;
+    document.getElementById("voiceText").value=final+(interim?" "+interim:"");
+    checkReady();
+  };
+  recognition.onerror=(e)=>{ if(e.error!=="no-speech") showToast("Mic error: "+e.error,"error"); stopVoice(); };
+  recognition.onend=()=>stopVoice();
+})();
+
+function toggleVoice(){ if(!recognition)return; isListening?recognition.stop():recognition.start(); }
+function stopVoice(){ isListening=false; document.getElementById("voiceBtn").classList.remove("listening"); document.getElementById("voiceStatus").classList.remove("show"); }
+
+// ── COMPANY ───────────────────────────────────────────────────────────────
+function selectCompany(name,el){
+  selectedCompany=name;
+  document.querySelectorAll(".pill").forEach(p=>p.classList.remove("selected"));
+  el.classList.add("selected");
+  checkReady();
+}
+
+// ── READINESS CHECK ───────────────────────────────────────────────────────
+function checkReady(){
+  const hasCompany = selectedCompany!=="";
+  const hasReason  = document.getElementById("voiceText").value.trim().length>0;
+  const hasDest    = document.getElementById("locationSearch").value.trim().length>0;
+  document.getElementById("goBtn").disabled = !(hasCompany && hasReason && hasDest);
+}
+
+// ── DESTINATION SEARCH ────────────────────────────────────────────────────
+const searchInput = document.getElementById("locationSearch");
+function onDestInput(){
+  const val=searchInput.value.trim();
+  document.getElementById("searchClear").classList.toggle("show",val.length>0);
+  document.getElementById("addrResolved").classList.remove("show");
+  clearTimeout(suggestTimer); checkReady();
+  if(val.length<2){hideSuggestions();return;}
+  suggestTimer=setTimeout(()=>fetchSuggestions(val),400);
+}
+function handleKey(e){
+  const box=document.getElementById("suggestions");
+  if(!box.classList.contains("show")){if(e.key==="Enter")doEverything();return;}
+  if(e.key==="ArrowDown"){e.preventDefault();moveSug(1);}
+  else if(e.key==="ArrowUp"){e.preventDefault();moveSug(-1);}
+  else if(e.key==="Enter"){e.preventDefault();activeSugIdx>=0?pickSug(activeSugIdx):doEverything();}
+  else if(e.key==="Escape")hideSuggestions();
+}
+function moveSug(dir){
+  const items=document.querySelectorAll(".sug-item");
+  if(!items.length)return;
+  activeSugIdx=Math.max(0,Math.min(items.length-1,activeSugIdx+dir));
+  items.forEach((el,i)=>el.classList.toggle("active",i===activeSugIdx));
+}
+async function fetchSuggestions(query){
+  const box=document.getElementById("suggestions");
+  box.innerHTML=`<div class="sug-loading"><span class="spin" style="border-top-color:var(--blue);border-color:rgba(0,0,0,.1)"></span> Searching…</div>`;
+  box.classList.add("show");
+  try{
+    const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:MODEL,max_tokens:500,messages:[{role:"user",content:
+        `Suggest up to 4 real places near "${getOrigin()}" matching: "${query}"\nRespond ONLY with JSON array:\n[{"name":"Place","address":"Full address, City, State ZIP","type":"store|school|office|warehouse|other","approx_miles_one_way":12.3}]`
+      }]})});
+    const data=await resp.json();
+    const text=data.content.map(b=>b.text||"").join("").trim().replace(/```json|```/g,"").trim();
+    suggestions=JSON.parse(text);
+    renderSuggestions();
+  }catch(e){box.innerHTML=`<div class="sug-loading">⚠ Press Enter to search</div>`;}
+}
+function renderSuggestions(){
+  const box=document.getElementById("suggestions"); activeSugIdx=-1;
+  if(!suggestions.length){box.innerHTML=`<div class="sug-loading">No matches — try different name</div>`;return;}
+  const icons={store:"🏪",school:"🏫",office:"🏢",warehouse:"🏭",other:"📍"};
+  box.innerHTML=suggestions.map((s,i)=>`
+    <div class="sug-item" onclick="pickSug(${i})">
+      <span class="sug-icon">${icons[s.type]||"📍"}</span>
+      <div>
+        <div class="sug-name">${esc(s.name)}</div>
+        <div class="sug-addr">${esc(s.address)}</div>
+        <div class="sug-dist">~${s.approx_miles_one_way.toFixed(1)} mi one-way · ${(s.approx_miles_one_way*2).toFixed(1)} mi round-trip</div>
+      </div>
+    </div>`).join("");
+  box.classList.add("show");
+}
+function pickSug(idx){
+  const s=suggestions[idx];
+  searchInput.value=s.name;
+  document.getElementById("searchClear").classList.add("show");
+  hideSuggestions(); checkReady();
+  // store pre-fetched data so doEverything can use it
+  searchInput._picked = s;
+}
+function hideSuggestions(){document.getElementById("suggestions").classList.remove("show");}
+document.addEventListener("click",e=>{if(!e.target.closest(".search-wrap"))hideSuggestions();});
+function clearSearch(){
+  searchInput.value=""; searchInput._picked=null;
+  document.getElementById("searchClear").classList.remove("show");
+  document.getElementById("addrResolved").classList.remove("show");
+  hideSuggestions(); checkReady();
+}
+
+// ── PROGRESS UI ───────────────────────────────────────────────────────────
+function setStep(n){
+  // n = 1..4, sets steps 1..n-1 done, n active
+  for(let i=1;i<=4;i++){
+    const ps=document.getElementById("ps"+i);
+    const pd=document.getElementById("pd"+i);
+    ps.className="p-step"+(i<n?" done":i===n?" active":"");
+    pd.textContent=i<n?"✓":String(i);
+  }
+  document.getElementById("progressWrap").classList.add("show");
+}
+function clearProgress(){
+  document.getElementById("progressWrap").classList.remove("show");
+  for(let i=1;i<=4;i++){
+    document.getElementById("ps"+i).className="p-step";
+    document.getElementById("pd"+i).textContent=String(i);
+  }
+}
+
+// ── DO EVERYTHING IN ONE GO ───────────────────────────────────────────────
+async function doEverything(){
+  const rawReason  = document.getElementById("voiceText").value.trim();
+  const destQuery  = searchInput.value.trim();
+  const date       = document.getElementById("tripDate").value;
+  if(!selectedCompany||!rawReason||!destQuery){showToast("Fill in company, reason, and destination.","error");return;}
+  if(!date){showToast("Select a date.","error");return;}
+
+  const btn=document.getElementById("goBtn");
+  btn.disabled=true;
+  btn.innerHTML=`<span class="spin"></span><div class="step-text"><div class="step-main">Working…</div><div class="step-sub">This takes about 5 seconds</div></div>`;
+  document.getElementById("resultCard").classList.remove("show");
+  clearProgress();
+
+  let address="", oneWay=0, company=selectedCompany, category="Business Travel", summary=rawReason;
+
+  try{
+    // ── STEP 1 + 2: Address lookup + distance (parallel with step 3 below) ──
+    setStep(1);
+    const picked = searchInput._picked;
+
+  const origin = getOrigin();
+
+    const locationPromise = picked
+      ? Promise.resolve({found:true, place_name:picked.name, address:picked.address, one_way_miles:picked.approx_miles_one_way, confidence:"medium"})
+      : fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({model:MODEL,max_tokens:300,messages:[{role:"user",content:
+            `Find address & driving distance from "${origin}" to "${destQuery}" (prioritize PA locations).\nRespond ONLY with JSON: {"found":true,"place_name":"Name","address":"Full address","one_way_miles":23.4,"confidence":"high|medium|low"}\nOr {"found":false,"message":"reason"}`
+          }]})}).then(r=>r.json()).then(d=>{
+            const t=d.content.map(b=>b.text||"").join("").trim().replace(/```json|```/g,"").trim();
+            return JSON.parse(t);
+          });
+
+    // ── STEP 3: AI categorize (run in parallel) ──
+    const aiPromise = fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:MODEL,max_tokens:200,messages:[{role:"user",content:
+        `Categorize this business trip.\nCompany: "${selectedCompany}"\nReason (may be voice-transcribed): "${rawReason}"\nCompanies: Arena Sports (sporting goods/uniforms), Fanatic Graphix (custom printing/embroidery), Diamond X, Vertical Raise (fundraising).\nCategory options: Customer Delivery | Supplier Pickup | Vendor Meeting | Client Meeting | Sales Call | Banking/Finance | Shipping/Freight | Equipment/Supplies | Event/Trade Show | Office/Admin | Other Business\nRespond ONLY with JSON: {"company":"Arena Sports","category":"Customer Delivery","summary":"One clean sentence."}`
+      }]})}).then(r=>r.json()).then(d=>{
+        const t=d.content.map(b=>b.text||"").join("").trim().replace(/```json|```/g,"").trim();
+        return JSON.parse(t);
+      });
+
+    setStep(2);
+
+    // Wait for both
+    const [locResult, aiResult] = await Promise.all([locationPromise, aiPromise]);
+
+    setStep(3);
+
+    if(!locResult.found){showToast("Couldn't find that location. Try a more specific name.","error");resetBtn();clearProgress();return;}
+
+    address  = locResult.address;
+    oneWay   = locResult.one_way_miles;
+    company  = aiResult.company  || selectedCompany;
+    category = aiResult.category || "Business Travel";
+    summary  = aiResult.summary  || rawReason;
+
+    // Show resolved address
+    document.getElementById("addrResolvedText").textContent=address;
+    document.getElementById("addrResolved").classList.add("show");
+
+    const roundTrip = parseFloat((oneWay*2).toFixed(1));
+    const deduction = parseFloat((roundTrip*IRS_RATE).toFixed(2));
+
+    // ── STEP 4: Save ──
+    setStep(4);
+
+    // Add to session log immediately
+    addTripToLog({date, destName:locResult.place_name||destQuery, destAddr:address, origin, company, category, summary, oneWay:parseFloat(oneWay.toFixed(1)), roundTrip, deduction});
+
+    // Show result card
+    const co=COMPANIES[company]||{cls:"badge-arena",emoji:"🏢"};
+    const badge=document.getElementById("rcCompany");
+    badge.className="company-badge "+co.cls;
+    badge.textContent=co.emoji+" "+company;
+    document.getElementById("rcCategory").textContent=category;
+    document.getElementById("rcSummary").textContent=summary;
+    document.getElementById("rcDest").textContent=`${locResult.place_name||destQuery} · ${address}`;
+    document.getElementById("rcMiles").textContent=`${roundTrip.toFixed(1)} mi round-trip (from ${origin === DEFAULT_ORIGIN ? "shop" : origin})`;
+    document.getElementById("rcDeduction").textContent=`$${deduction.toFixed(2)} estimated deduction`;
+    document.getElementById("resultCard").classList.add("show");
+
+    // Mark all done
+    for(let i=1;i<=4;i++){
+      document.getElementById("ps"+i).className="p-step done";
+      document.getElementById("pd"+i).textContent="✓";
+    }
+
+    showToast("✓ Trip analyzed & saved!","success");
+    resetForm();
+
+  }catch(e){
+    console.error(e);
+    showToast("Something went wrong. Try again.","error");
+    clearProgress();
+  }
+
+  resetBtn();
+}
+
+function resetBtn(){
+  const btn=document.getElementById("goBtn");
+  btn.innerHTML=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg><div class="step-text"><div class="step-main">Analyze &amp; Save to Google Sheets</div><div class="step-sub">Find address · calculate miles · AI categorize · save — all at once</div></div>`;
+  btn.disabled=false;
+  checkReady();
+}
+
+// ── SESSION LOG ───────────────────────────────────────────────────────────
+function addTripToLog(trip){
+  trips.push(trip);
+  document.getElementById("totalTrips").textContent=trips.length;
+  document.getElementById("totalMiles").textContent=trips.reduce((s,t)=>s+t.roundTrip,0).toFixed(1);
+  document.getElementById("totalDeduction").textContent="$"+trips.reduce((s,t)=>s+t.deduction,0).toFixed(2);
+  document.getElementById("tripLog").innerHTML=[...trips].reverse().map(t=>{
+    const tco=COMPANIES[t.company]||{cls:"badge-arena",emoji:"🏢"};
+    return `<div class="trip-item">
+      <div class="trip-dot"></div>
+      <div class="trip-main">
+        <div class="trip-dest">${esc(t.destName)}</div>
+        <div class="trip-addr">From: ${esc(t.origin||DEFAULT_ORIGIN)} → ${esc(t.destAddr)}</div>
+        <div class="trip-meta">
+          <span class="company-badge ${tco.cls}" style="font-size:11px;padding:2px 8px">${tco.emoji} ${esc(t.company)}</span>
+          <span class="category-tag">${esc(t.category)}</span>
+        </div>
+        <div class="trip-note">${esc(t.summary)}</div>
+      </div>
+      <div class="trip-right">
+        <div class="trip-miles">${t.roundTrip.toFixed(1)} mi</div>
+        <div class="trip-deduct">+$${t.deduction.toFixed(2)}</div>
+        <div class="trip-date">${fmtDate(t.date)}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function resetForm(){
+  document.getElementById("voiceText").value="";
+  document.querySelectorAll(".pill").forEach(p=>p.classList.remove("selected"));
+  selectedCompany="";
+  searchInput.value=""; searchInput._picked=null;
+  document.getElementById("searchClear").classList.remove("show");
+  document.getElementById("addrResolved").classList.remove("show");
+  // Don't reset the origin override — user may want to log multiple trips from same custom origin
+  checkReady();
+}
+
+function showToast(msg,type=""){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className="toast show"+(type?" "+type:"");
+  setTimeout(()=>t.className="toast",3200);
+}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function fmtDate(d){const[y,m,day]=d.split("-");return`${m}/${day}/${y}`;}
+</script>
+</body>
+</html>
