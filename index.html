@@ -212,7 +212,29 @@
   .sheet-link { display:flex; align-items:center; gap:8px; background:var(--mint); border:1px solid #b2dfca; border-radius:8px; padding:10px 14px; text-decoration:none; color:var(--green); font-size:13px; font-weight:600; transition:background .15s; margin-bottom:14px; }
   .sheet-link:hover { background:#c8ebd6; }
 
-  /* Custom origin */
+  /* API Key setup */
+  .api-setup {
+    background: #fff; border: 2px solid var(--amber,#c47d0e); border-radius: var(--radius);
+    padding: 20px; margin-bottom: 16px;
+  }
+  .api-setup-title { font-size:14px; font-weight:700; color:var(--text); margin-bottom:6px; display:flex; align-items:center; gap:8px; }
+  .api-setup-sub { font-size:12px; color:var(--muted); margin-bottom:14px; line-height:1.5; }
+  .api-setup-sub a { color:var(--blue); }
+  .api-key-row { display:flex; gap:8px; }
+  .api-key-row input { flex:1; font-family:'Roboto Mono',monospace; font-size:13px; letter-spacing:.03em; }
+  .btn-save-key {
+    padding:11px 18px; background:var(--navy); color:#fff; border:none; border-radius:8px;
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
+    transition:background .15s;
+  }
+  .btn-save-key:hover { background:#243d5c; }
+  .key-saved-badge {
+    display:none; align-items:center; gap:6px; margin-top:10px;
+    background:var(--mint); border:1px solid #b2dfca; border-radius:8px;
+    padding:8px 12px; font-size:12px; font-weight:600; color:var(--green);
+  }
+  .key-saved-badge.show { display:flex; }
+  .key-change-btn { background:none; border:none; color:var(--blue); font-size:11px; cursor:pointer; text-decoration:underline; margin-left:auto; font-family:'Inter',sans-serif; }
   .origin-override-wrap { position:relative; }
   .origin-override-wrap input { padding-left:42px; }
   .origin-override-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none; }
@@ -256,6 +278,25 @@
 </header>
 
 <main>
+
+  <!-- API KEY SETUP -->
+  <div class="api-setup" id="apiSetup">
+    <div class="api-setup-title">🔑 One-Time Setup — Enter Your Claude API Key</div>
+    <div class="api-setup-sub">
+      This app uses the Claude AI to look up addresses and categorize trips.<br>
+      Get your free key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → Create Key.<br>
+      Your key is saved only in this browser — never sent anywhere except Anthropic.
+    </div>
+    <div class="api-key-row">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." onkeydown="if(event.key==='Enter')saveKey()">
+      <button class="btn-save-key" onclick="saveKey()">Save Key</button>
+    </div>
+    <div class="key-saved-badge" id="keySavedBadge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      API key saved in this browser
+      <button class="key-change-btn" onclick="changeKey()">Change</button>
+    </div>
+  </div>
 
   <div class="totals-banner">
     <div class="total-stat">
@@ -426,6 +467,62 @@ const IRS_RATE = 0.70;
 const IRS_YEAR = 2025;
 const MODEL    = "claude-sonnet-4-6";
 
+// ── API KEY MANAGEMENT ────────────────────────────────────────────────────
+function getKey() { return localStorage.getItem("arenaTrackerApiKey") || ""; }
+
+function saveKey() {
+  const key = document.getElementById("apiKeyInput").value.trim();
+  if (!key.startsWith("sk-")) { showToast("That doesn't look like a valid key — it should start with sk-", "error"); return; }
+  localStorage.setItem("arenaTrackerApiKey", key);
+  document.getElementById("apiKeyInput").value = "";
+  document.getElementById("keySavedBadge").classList.add("show");
+  document.getElementById("apiKeyInput").placeholder = "sk-ant-••••••••••••••••••••••••";
+  showToast("✓ API key saved!", "success");
+  checkReady();
+}
+
+function changeKey() {
+  localStorage.removeItem("arenaTrackerApiKey");
+  document.getElementById("keySavedBadge").classList.remove("show");
+  document.getElementById("apiKeyInput").value = "";
+  document.getElementById("apiKeyInput").placeholder = "sk-ant-api03-...";
+  checkReady();
+}
+
+// Load key state on startup
+(function loadKeyState() {
+  if (getKey()) {
+    document.getElementById("keySavedBadge").classList.add("show");
+    document.getElementById("apiKeyInput").placeholder = "sk-ant-••••••••••••••••••••••••";
+  }
+})();
+
+// ── CLAUDE API HELPER ─────────────────────────────────────────────────────
+async function claudeFetch(prompt, maxTokens = 400) {
+  const key = getKey();
+  if (!key) throw new Error("No API key set");
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: maxTokens,
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err?.error?.message || "API error " + resp.status);
+  }
+  const data = await resp.json();
+  return data.content.map(b => b.text || "").join("").trim().replace(/```json|```/g, "").trim();
+}
+
 function getOrigin() {
   const custom = document.getElementById("originOverride").value.trim();
   return custom || DEFAULT_ORIGIN;
@@ -502,10 +599,20 @@ function selectCompany(name,el){
 
 // ── READINESS CHECK ───────────────────────────────────────────────────────
 function checkReady(){
+  const hasKey     = getKey() !== "";
   const hasCompany = selectedCompany!=="";
   const hasReason  = document.getElementById("voiceText").value.trim().length>0;
   const hasDest    = document.getElementById("locationSearch").value.trim().length>0;
-  document.getElementById("goBtn").disabled = !(hasCompany && hasReason && hasDest);
+  const ready      = hasKey && hasCompany && hasReason && hasDest;
+  const btn        = document.getElementById("goBtn");
+  btn.disabled     = !ready;
+  if (!hasKey) {
+    btn.querySelector(".step-sub").textContent = "⚠ Enter your API key at the top first";
+  } else if (!ready) {
+    btn.querySelector(".step-sub").textContent = "Find address · calculate miles · AI categorize · save — all at once";
+  } else {
+    btn.querySelector(".step-sub").textContent = "Find address · calculate miles · AI categorize · save — all at once";
+  }
 }
 
 // ── DESTINATION SEARCH ────────────────────────────────────────────────────
@@ -537,15 +644,13 @@ async function fetchSuggestions(query){
   box.innerHTML=`<div class="sug-loading"><span class="spin" style="border-top-color:var(--blue);border-color:rgba(0,0,0,.1)"></span> Searching…</div>`;
   box.classList.add("show");
   try{
-    const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({model:MODEL,max_tokens:500,messages:[{role:"user",content:
-        `Suggest up to 4 real places near "${getOrigin()}" matching: "${query}"\nRespond ONLY with JSON array:\n[{"name":"Place","address":"Full address, City, State ZIP","type":"store|school|office|warehouse|other","approx_miles_one_way":12.3}]`
-      }]})});
-    const data=await resp.json();
-    const text=data.content.map(b=>b.text||"").join("").trim().replace(/```json|```/g,"").trim();
+    const text = await claudeFetch(
+      `Suggest up to 4 real places near "${getOrigin()}" matching: "${query}"\nRespond ONLY with JSON array:\n[{"name":"Place","address":"Full address, City, State ZIP","type":"store|school|office|warehouse|other","approx_miles_one_way":12.3}]`,
+      500
+    );
     suggestions=JSON.parse(text);
     renderSuggestions();
-  }catch(e){box.innerHTML=`<div class="sug-loading">⚠ Press Enter to search</div>`;}
+  }catch(e){box.innerHTML=`<div class="sug-loading">⚠ ${e.message.includes("No API key") ? "Enter your API key at the top first" : "Press Enter to search"}</div>`;}
 }
 function renderSuggestions(){
   const box=document.getElementById("suggestions"); activeSugIdx=-1;
@@ -623,22 +728,16 @@ async function doEverything(){
 
     const locationPromise = picked
       ? Promise.resolve({found:true, place_name:picked.name, address:picked.address, one_way_miles:picked.approx_miles_one_way, confidence:"medium"})
-      : fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({model:MODEL,max_tokens:300,messages:[{role:"user",content:
-            `Find address & driving distance from "${origin}" to "${destQuery}" (prioritize PA locations).\nRespond ONLY with JSON: {"found":true,"place_name":"Name","address":"Full address","one_way_miles":23.4,"confidence":"high|medium|low"}\nOr {"found":false,"message":"reason"}`
-          }]})}).then(r=>r.json()).then(d=>{
-            const t=d.content.map(b=>b.text||"").join("").trim().replace(/```json|```/g,"").trim();
-            return JSON.parse(t);
-          });
+      : claudeFetch(
+          `Find address & driving distance from "${origin}" to "${destQuery}" (prioritize PA locations).\nRespond ONLY with JSON: {"found":true,"place_name":"Name","address":"Full address","one_way_miles":23.4,"confidence":"high|medium|low"}\nOr {"found":false,"message":"reason"}`,
+          300
+        ).then(t => JSON.parse(t));
 
     // ── STEP 3: AI categorize (run in parallel) ──
-    const aiPromise = fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({model:MODEL,max_tokens:200,messages:[{role:"user",content:
-        `Categorize this business trip.\nCompany: "${selectedCompany}"\nReason (may be voice-transcribed): "${rawReason}"\nCompanies: Arena Sports (sporting goods/uniforms), Fanatic Graphix (custom printing/embroidery), Diamond X, Vertical Raise (fundraising).\nCategory options: Customer Delivery | Supplier Pickup | Vendor Meeting | Client Meeting | Sales Call | Banking/Finance | Shipping/Freight | Equipment/Supplies | Event/Trade Show | Office/Admin | Other Business\nRespond ONLY with JSON: {"company":"Arena Sports","category":"Customer Delivery","summary":"One clean sentence."}`
-      }]})}).then(r=>r.json()).then(d=>{
-        const t=d.content.map(b=>b.text||"").join("").trim().replace(/```json|```/g,"").trim();
-        return JSON.parse(t);
-      });
+    const aiPromise = claudeFetch(
+      `Categorize this business trip.\nCompany: "${selectedCompany}"\nReason (may be voice-transcribed): "${rawReason}"\nCompanies: Arena Sports (sporting goods/uniforms), Fanatic Graphix (custom printing/embroidery), Diamond X, Vertical Raise (fundraising).\nCategory options: Customer Delivery | Supplier Pickup | Vendor Meeting | Client Meeting | Sales Call | Banking/Finance | Shipping/Freight | Equipment/Supplies | Event/Trade Show | Office/Admin | Other Business\nRespond ONLY with JSON: {"company":"Arena Sports","category":"Customer Delivery","summary":"One clean sentence."}`,
+      200
+    ).then(t => JSON.parse(t));
 
     setStep(2);
 
