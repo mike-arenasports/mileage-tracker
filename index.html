@@ -438,7 +438,7 @@
     </div>
     <div class="saved-banner" id="savedBanner">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-      Saved to Google Sheets
+      ✓ Saved to Google Sheets
     </div>
   </div>
 
@@ -462,7 +462,8 @@
 
 <script>
 const DEFAULT_ORIGIN = "3 Fair Ave, Hanover, PA 17331";
-const SHEET_ID = "1W1Ai_CGRpdO26h9fjoVO7y9rXKeKbB1ib2MSswjSKRc";
+const SHEET_ID   = "1W1Ai_CGRpdO26h9fjoVO7y9rXKeKbB1ib2MSswjSKRc";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6Ym2dt-xBBZh588f6Z1u3855VwfblmQVO_KryC-g3FHxUejPONJrRprfvNddSMutZ7Q/exec";
 const IRS_RATE = 0.70;
 const IRS_YEAR = 2025;
 const MODEL    = "claude-sonnet-4-6";
@@ -767,6 +768,9 @@ async function doEverything(){
     // Add to session log immediately
     addTripToLog({date, destName:locResult.place_name||destQuery, destAddr:address, origin, company, category, summary, oneWay:parseFloat(oneWay.toFixed(1)), roundTrip, deduction});
 
+    // Save to Google Sheets via Apps Script
+    saveToSheet({date, destName:locResult.place_name||destQuery, destAddr:address, origin, company, category, summary, oneWay:parseFloat(oneWay.toFixed(1)), roundTrip, irsRate:IRS_RATE, deduction});
+
     // Show result card
     const co=COMPANIES[company]||{cls:"badge-arena",emoji:"🏢"};
     const badge=document.getElementById("rcCompany");
@@ -805,7 +809,21 @@ function resetBtn(){
 }
 
 // ── SESSION LOG ───────────────────────────────────────────────────────────
-function addTripToLog(trip){
+// ── SAVE TO GOOGLE SHEETS ─────────────────────────────────────────────────
+async function saveToSheet(trip) {
+  try {
+    await fetch(SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(trip)
+    });
+  } catch(e) {
+    console.error("Sheet save error:", e);
+  }
+}
+
+// ── SESSION LOG ───────────────────────────────────────────────────────────
   trips.push(trip);
   document.getElementById("totalTrips").textContent=trips.length;
   document.getElementById("totalMiles").textContent=trips.reduce((s,t)=>s+t.roundTrip,0).toFixed(1);
