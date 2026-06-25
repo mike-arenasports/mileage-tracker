@@ -757,7 +757,7 @@ async function doEverything(){
     addTripToLog({date, destName:locResult.place_name||destQuery, destAddr:address, origin, company, category, summary, oneWay:parseFloat(oneWay.toFixed(1)), roundTrip, deduction});
 
     // Save to Google Sheets via Apps Script
-    saveToSheet({date, destName:locResult.place_name||destQuery, destAddr:address, origin, company, category, summary, oneWay:parseFloat(oneWay.toFixed(1)), roundTrip, irsRate:IRS_RATE, deduction});
+    saveToSheet({date, destName:locResult.place_name||destQuery, destAddr:address, origin, company, category, summary, oneWay:parseFloat(oneWay.toFixed(1)), roundTrip, irsRate:IRS_RATE, deduction, sheetTab:"MIKE"});
 
     // Show result card
     const co=COMPANIES[company]||{cls:"badge-arena",emoji:"🏢"};
