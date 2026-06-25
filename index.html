@@ -279,25 +279,6 @@
 
 <main>
 
-  <!-- API KEY SETUP -->
-  <div class="api-setup" id="apiSetup">
-    <div class="api-setup-title">🔑 One-Time Setup — Enter Your Claude API Key</div>
-    <div class="api-setup-sub">
-      This app uses the Claude AI to look up addresses and categorize trips.<br>
-      Get your free key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → Create Key.<br>
-      Your key is saved only in this browser — never sent anywhere except Anthropic.
-    </div>
-    <div class="api-key-row">
-      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." onkeydown="if(event.key==='Enter')saveKey()">
-      <button class="btn-save-key" onclick="saveKey()">Save Key</button>
-    </div>
-    <div class="key-saved-badge" id="keySavedBadge">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-      API key saved in this browser
-      <button class="key-change-btn" onclick="changeKey()">Change</button>
-    </div>
-  </div>
-
   <div class="totals-banner">
     <div class="total-stat">
       <div class="num" id="totalTrips">0</div>
@@ -311,6 +292,21 @@
       <div class="num" id="totalDeduction">$0.00</div>
       <div class="lbl">Est. Deduction</div>
     </div>
+  </div>
+
+  <!-- API KEY SETUP (only shown if no key saved) -->
+  <div class="api-setup" id="apiSetup">
+    <div class="api-setup-title">🔑 One-Time Setup — Enter Your Claude API Key</div>
+    <div class="api-setup-sub">Your key is saved <strong>only in this browser</strong> — never in the code or on GitHub. Get yours at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys.</div>
+    <div class="api-key-row">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-…" autocomplete="off">
+      <button class="btn-save-key" onclick="saveKey()">Save Key</button>
+    </div>
+  </div>
+  <div class="key-saved-badge" id="keySavedBadge">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    API key saved in this browser
+    <button class="key-change-btn" onclick="changeKey()">Change</button>
   </div>
 
   <a href="https://docs.google.com/spreadsheets/d/1W1Ai_CGRpdO26h9fjoVO7y9rXKeKbB1ib2MSswjSKRc/edit" target="_blank" class="sheet-link">
@@ -467,36 +463,34 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6Ym2dt-xBBZh588f6Z
 const IRS_RATE = 0.70;
 const IRS_YEAR = 2025;
 const MODEL    = "claude-sonnet-4-6";
-
-// ── API KEY MANAGEMENT ────────────────────────────────────────────────────
-function getKey() { return localStorage.getItem("arenaTrackerApiKey") || ""; }
+// ── API KEY (stored in browser only, never in code) ───────────────────────
+function getKey() { return localStorage.getItem("arena_claude_key") || ""; }
 
 function saveKey() {
-  const key = document.getElementById("apiKeyInput").value.trim();
-  if (!key.startsWith("sk-")) { showToast("That doesn't look like a valid key — it should start with sk-", "error"); return; }
-  localStorage.setItem("arenaTrackerApiKey", key);
-  document.getElementById("apiKeyInput").value = "";
-  document.getElementById("keySavedBadge").classList.add("show");
-  document.getElementById("apiKeyInput").placeholder = "sk-ant-••••••••••••••••••••••••";
+  const val = document.getElementById("apiKeyInput").value.trim();
+  if (!val.startsWith("sk-ant-")) { showToast("That doesn't look right — key should start with sk-ant-", "error"); return; }
+  localStorage.setItem("arena_claude_key", val);
+  loadKeyState();
   showToast("✓ API key saved!", "success");
-  checkReady();
 }
 
 function changeKey() {
-  localStorage.removeItem("arenaTrackerApiKey");
-  document.getElementById("keySavedBadge").classList.remove("show");
-  document.getElementById("apiKeyInput").value = "";
-  document.getElementById("apiKeyInput").placeholder = "sk-ant-api03-...";
-  checkReady();
+  localStorage.removeItem("arena_claude_key");
+  loadKeyState();
 }
 
-// Load key state on startup
-(function loadKeyState() {
-  if (getKey()) {
-    document.getElementById("keySavedBadge").classList.add("show");
-    document.getElementById("apiKeyInput").placeholder = "sk-ant-••••••••••••••••••••••••";
+function loadKeyState() {
+  const key = getKey();
+  const setup = document.getElementById("apiSetup");
+  const badge = document.getElementById("keySavedBadge");
+  if (key) {
+    setup.style.display = "none";
+    badge.classList.add("show");
+  } else {
+    setup.style.display = "block";
+    badge.classList.remove("show");
   }
-})();
+}
 
 // ── CLAUDE API HELPER ─────────────────────────────────────────────────────
 async function claudeFetch(prompt, maxTokens = 400) {
@@ -566,6 +560,7 @@ let trips=[], selectedCompany="", suggestTimer=null, suggestions=[], activeSugId
 let recognition=null, isListening=false;
 
 document.getElementById("tripDate").value = new Date().toISOString().split("T")[0];
+loadKeyState();
 
 // ── VOICE ─────────────────────────────────────────────────────────────────
 (function(){
@@ -600,20 +595,13 @@ function selectCompany(name,el){
 
 // ── READINESS CHECK ───────────────────────────────────────────────────────
 function checkReady(){
-  const hasKey     = getKey() !== "";
   const hasCompany = selectedCompany!=="";
   const hasReason  = document.getElementById("voiceText").value.trim().length>0;
   const hasDest    = document.getElementById("locationSearch").value.trim().length>0;
-  const ready      = hasKey && hasCompany && hasReason && hasDest;
+  const ready      = hasCompany && hasReason && hasDest;
   const btn        = document.getElementById("goBtn");
   btn.disabled     = !ready;
-  if (!hasKey) {
-    btn.querySelector(".step-sub").textContent = "⚠ Enter your API key at the top first";
-  } else if (!ready) {
-    btn.querySelector(".step-sub").textContent = "Find address · calculate miles · AI categorize · save — all at once";
-  } else {
-    btn.querySelector(".step-sub").textContent = "Find address · calculate miles · AI categorize · save — all at once";
-  }
+  btn.querySelector(".step-sub").textContent = "Find address · calculate miles · AI categorize · save — all at once";
 }
 
 // ── DESTINATION SEARCH ────────────────────────────────────────────────────
@@ -824,6 +812,7 @@ async function saveToSheet(trip) {
 }
 
 // ── SESSION LOG ───────────────────────────────────────────────────────────
+function addTripToLog(trip) {
   trips.push(trip);
   document.getElementById("totalTrips").textContent=trips.length;
   document.getElementById("totalMiles").textContent=trips.reduce((s,t)=>s+t.roundTrip,0).toFixed(1);
